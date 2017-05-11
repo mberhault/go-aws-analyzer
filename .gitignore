@@ -22,3 +22,8 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+daily.png
+go-aws-analyzer
+summary.html
+weekly.png
