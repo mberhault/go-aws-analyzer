@@ -42,6 +42,9 @@ func drawChart(data []*summary, writer io.Writer) {
 		XAxis: chart.XAxis{
 			Style: chart.Style{Show: true},
 		},
+		YAxis: chart.YAxis{
+			Style: chart.Style{Show: true},
+		},
 		Background: chart.Style{
 			Padding: chart.Box{Top: 20, Left: 20},
 		},

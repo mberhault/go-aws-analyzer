@@ -2,10 +2,15 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"io"
 	"log"
 	"os"
 	"sort"
 	"strings"
+	"time"
+
+	gomail "gopkg.in/gomail.v2"
 )
 
 const (
@@ -24,6 +29,13 @@ var (
 	htmlFile      = flag.String("summary-html", "summary.html", "Filename for html summary")
 	dailyPng      = flag.String("daily-png", "daily.png", "Filename for daily png chart")
 	weeklyPng     = flag.String("weekly-png", "weekly.png", "Filename for weekly png chart")
+
+	emailFrom     = flag.String("email-from", "", "SMTP server from address")
+	emailTo       = flag.String("email-to", "", "SMTP server to address")
+	emailHost     = flag.String("email-host", "", "SMTP server name")
+	emailPort     = flag.Int("email-port", 587, "SMTP server port")
+	emailUser     = flag.String("email-user", "", "SMTP server username")
+	emailPassword = flag.String("email-password", "", "SMTP server password")
 )
 
 func main() {
@@ -46,18 +58,38 @@ func main() {
 	writeChart(*dailyPng, daily[len(daily)-62:])
 	writeChart(*weeklyPng, weekly)
 
-	// Write the HTML summary.
-
 	f, err := os.Create(*htmlFile)
 	if err != nil {
 		log.Fatalf("could not create summary files: %v", err)
 	}
 	defer f.Close()
 
-	// We need to reverser the data first, templates don't have for loops.
+	// We need to reverse the data first, templates don't have for loops.
 	sort.Sort(sort.Reverse(daily))
 	sort.Sort(sort.Reverse(weekly))
 
+	// Write the HTML summary.
 	writeHTML(f, "Daily downloads", daily[0:10])
 	writeHTML(f, "Weekly downloads", weekly[0:10])
+
+	// Craft the email.
+	m := gomail.NewMessage()
+	m.SetHeader("From", *emailFrom)
+	m.SetHeader("To", *emailTo)
+	m.SetHeader("Subject", time.Now().Format("Binary downloads 2006-01-02"))
+	m.Embed(*dailyPng)
+	m.Embed(*weeklyPng)
+	m.AddAlternativeWriter("text/html", func(w io.Writer) error {
+		writeHTML(w, "Daily downloads", daily[0:10])
+		fmt.Fprintf(w, `<img src="cid:%s">`, *dailyPng)
+		writeHTML(w, "Weekly downloads", weekly[0:10])
+		fmt.Fprintf(w, `<img src="cid:%s">`, *weeklyPng)
+		return nil
+	})
+
+	// Send mail.
+	d := gomail.NewDialer(*emailHost, *emailPort, *emailUser, *emailPassword)
+	if err := d.DialAndSend(m); err != nil {
+		log.Fatalf("could not send email: %v", err)
+	}
 }
