@@ -211,8 +211,11 @@ func (cf *CFDownloads) parseOneLine(line string) error {
 		return fmt.Errorf("only %d entries in line %s", len(parts), line)
 	}
 
-	date, ip, url, statusCode := parts[0], parts[4], parts[7], parts[8]
+	date, ip, method, url, statusCode := parts[0], parts[4], parts[5], parts[7], parts[8]
 
+	if method != "GET" {
+		return nil
+	}
 	// We only want full successful responses.
 	// We do get 206 (partial content), various 3XX/4XX, and the occasional 000 which cloudfront
 	// uses to mean that the client closed the connection before the response.
